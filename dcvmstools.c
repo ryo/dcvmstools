@@ -1174,6 +1174,50 @@ dcvmtool_cmd_put(int argc, char *argv[])
 }
 
 static int
+dcvmtool_cmd_attr_usage(void)
+{
+	fprintf(stderr, "usage: dcvmtools attr <attr> <file>\n");
+	fprintf(stderr, "\tattr:\n");
+	fprintf(stderr, "\t\tgame		change file type to GAME\n");
+	fprintf(stderr, "\t\tdata		change file type to DATA\n");
+	fprintf(stderr, "\t\t+prohibit	set prohibit flag\n");
+	fprintf(stderr, "\t\t-prohibit	unset prohibit flag\n");
+	return EX_USAGE;
+}
+
+static int
+dcvmtool_cmd_attr(int argc, char *argv[])
+{
+	struct vmsfs_dirent *dp;
+	char *attr, *filename;
+
+	if (argc != 2)
+		return dcvmtool_cmd_attr_usage();
+
+	attr = argv[0];
+	filename = argv[1];
+	dp = vms_dirent_lookup(filename);
+	if (dp == NULL)
+		err(1, "attr: %s", filename);
+
+	if (strcasecmp(attr, "game") == 0) {
+		dp->type = DIR_TYPE_GAME;
+	} else if (strcasecmp(attr, "data") == 0) {
+		dp->type = DIR_TYPE_DATA;
+	} else if (strcasecmp(attr, "-prohibit") == 0) {
+		dp->attr = DIR_ATTR_COPIABLE;
+	} else if (strcasecmp(attr, "+prohibit") == 0) {
+		dp->attr = DIR_ATTR_PROHIBIT;
+	} else {
+		return dcvmtool_cmd_attr_usage();
+	}
+
+	vms_save_dir();
+
+	return 0;
+}
+
+static int
 usage(void)
 {
 	fprintf(stderr, "usage: dcvmstools [-f <device|VMSimage>] <command> [arg ...]\n");
@@ -1229,6 +1273,8 @@ main(int argc, char *argv[])
 		return dcvmtool_cmd_put(argc, argv);
 	} else if (strcmp(cmd, "del") == 0) {
 		return dcvmtool_cmd_del(argc, argv);
+	} else if (strcmp(cmd, "attr") == 0) {
+		return dcvmtool_cmd_attr(argc, argv);
 	}
 
 	return usage();
