@@ -46,6 +46,10 @@ The timestamp will also be copied.
 ### dcvmstools del
 Deletes the specified file in the storage.
 
+### dcvmstools attr
+Set type of file (GAME or DATA).  
+Set or Unset PROHIBIT flag.
+
 ### dcvmstools dump
 Outputs information about the system area of the visual memory.
 
@@ -56,7 +60,6 @@ Outputs the FAT mapping information.
 dcvmstools is distributed under BSD license.
 
 ## reference
-[NetBSD/dreamcast](http://wiki.netbsd.org/ports/dreamcast/)
-
-[Dreamcast Programming](http://mc.pp.se/dc/)
+* [NetBSD/dreamcast](http://wiki.netbsd.org/ports/dreamcast/)
+* [Dreamcast Programming](http://mc.pp.se/dc/)
 
