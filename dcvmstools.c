@@ -28,6 +28,7 @@
 #include <sys/bitops.h>
 #include <sys/endian.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <fnmatch.h>
@@ -862,6 +863,42 @@ dcvmtool_cmd_show(int argc, char *argv[])
 }
 
 static int
+vmsfs_unixtime2bcdtimestamp(struct timestamp *timestamp, time_t mtime)
+{
+	struct tm *tm;
+#define DEC2BCD(d)	((uint8_t)((((d) / 10) << 4) | ((d) % 10)))
+
+	tm = localtime(&mtime);
+	timestamp->bcd[0] = DEC2BCD((tm->tm_year + 1900) / 100);
+	timestamp->bcd[1] = DEC2BCD(tm->tm_year % 100);
+	timestamp->bcd[2] = DEC2BCD(tm->tm_mon + 1);
+	timestamp->bcd[3] = DEC2BCD(tm->tm_mday);
+	timestamp->bcd[4] = DEC2BCD(tm->tm_hour);
+	timestamp->bcd[5] = DEC2BCD(tm->tm_min);
+	timestamp->bcd[6] = DEC2BCD(tm->tm_sec);
+	return 0;
+}
+
+/* bcdtimestamp will be always treated as localtime */
+static time_t
+vmsfs_bcdtimestamp2unixtime(struct timestamp *timestamp)
+{
+	struct tm *tm;
+	time_t t = 0;
+#define BCD2DEC(b)	((((b) >> 4) * 10) + ((b) & 0x0f))
+
+	tm = localtime(&t);
+	tm->tm_year = BCD2DEC(timestamp->bcd[0]) * 100 +  BCD2DEC(timestamp->bcd[1]) - 1900;
+	tm->tm_mon = BCD2DEC(timestamp->bcd[2]) - 1;
+	tm->tm_mday = BCD2DEC(timestamp->bcd[3]);
+	tm->tm_hour = BCD2DEC(timestamp->bcd[4]);
+	tm->tm_min = BCD2DEC(timestamp->bcd[5]);
+	tm->tm_sec = BCD2DEC(timestamp->bcd[6]);
+
+	return timelocal(tm);
+}
+
+static int
 dcvmtool_cmd_get_usage(void)
 {
 	fprintf(stderr, "usage: dcvmtools get [-v] file [...]\n");
@@ -926,6 +963,13 @@ dcvmtool_cmd_get(int argc, char *argv[])
 				fclose(fh);
 
 				free(buf);
+
+				/* keep timestamp */
+				struct timeval tv[2];
+				memset(tv, 0, sizeof(tv));
+				tv[0].tv_sec = vmsfs_bcdtimestamp2unixtime(&dp->timestamp);
+				tv[1] = tv[0];
+				utimes(name, tv);
 			}
 		}
 		vmsfs_closedir(dirp);
@@ -996,23 +1040,6 @@ vmsfs_regular_name(char vmsname[DIR_NAMELEN], const char *filename)
 		vmsname[i] = (char)ch;
 	}
 
-	return 0;
-}
-
-static int
-vmsfs_unixtime2bcdtimestamp(struct timestamp *timestamp, time_t mtime)
-{
-	struct tm *tm;
-#define DEC2BCD(d)	((uint8_t)((((d) / 10) << 4) | ((d) % 10)))
-
-	tm = localtime(&mtime);
-	timestamp->bcd[0] = DEC2BCD((tm->tm_year + 1900) / 100);
-	timestamp->bcd[1] = DEC2BCD(tm->tm_year % 100);
-	timestamp->bcd[2] = DEC2BCD(tm->tm_mon + 1);
-	timestamp->bcd[3] = DEC2BCD(tm->tm_mday);
-	timestamp->bcd[4] = DEC2BCD(tm->tm_hour);
-	timestamp->bcd[5] = DEC2BCD(tm->tm_min);
-	timestamp->bcd[6] = DEC2BCD(tm->tm_sec);
 	return 0;
 }
 
